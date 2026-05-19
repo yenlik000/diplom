@@ -10,9 +10,9 @@
     <!-- ── Header ─────────────────────────────────────────── -->
     <header class="header">
       <div class="header-inner">
-        <RouterLink to="/" class="logo">
+        <!-- <RouterLink to="/" class="logo">
           <img src="@/assets/logo.png" alt="Bridge" class="logo-img" />
-        </RouterLink>
+        </RouterLink> -->
 
         <nav class="nav">
           <RouterLink to="/" class="nav-link">Home</RouterLink>
