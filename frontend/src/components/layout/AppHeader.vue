@@ -31,11 +31,6 @@
           <span class="user-name">{{ auth.user?.name }}</span>
           <Button :label="t('header.logout')" severity="secondary" size="small" outlined @click="handleLogout" />
         </template>
-        <template v-else>
-          <RouterLink to="/login">
-            <Button :label="t('header.login')" severity="secondary" size="small" outlined />
-          </RouterLink>
-        </template>
       </div>
     </div>
   </header>
