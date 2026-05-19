@@ -61,11 +61,11 @@ const routes = [
   },
 
   // ── Fallback ─────────────────────────────────────────────────
-  { path: '/:pathMatch(.*)*', redirect: '/' },
+  { path: '/:pathMatch(.*)*', redirect: '/diplom/' },
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory('/diplom/'),
   routes,
   scrollBehavior: () => ({ top: 0 }),
 })
