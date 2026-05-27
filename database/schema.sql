@@ -80,15 +80,17 @@ CREATE TRIGGER trg_modules_updated_at
 -- LESSONS
 -- ============================================================
 CREATE TABLE lessons (
-    id              SERIAL PRIMARY KEY,
-    module_id       INTEGER      NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
-    title           VARCHAR(255) NOT NULL,
-    video_url       TEXT,
-    text_content    TEXT,
-    order_num       INTEGER      NOT NULL,
-    is_free_preview BOOLEAN      NOT NULL DEFAULT FALSE,
-    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    id               SERIAL PRIMARY KEY,
+    module_id        INTEGER      NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+    title            VARCHAR(255) NOT NULL,
+    video_url        TEXT,
+    audio_url        TEXT,
+    text_content     TEXT,
+    order_num        INTEGER      NOT NULL,
+    is_free_preview  BOOLEAN      NOT NULL DEFAULT FALSE,
+    duration_seconds INTEGER      NOT NULL DEFAULT 0,
+    created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     UNIQUE (module_id, order_num)
 );
 
@@ -122,6 +124,7 @@ CREATE TABLE homeworks (
     lesson_id   INTEGER      NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
     title       VARCHAR(255),
     description TEXT,
+    max_score   INTEGER      NOT NULL DEFAULT 100,
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
@@ -202,7 +205,10 @@ CREATE TABLE homework_submissions (
     user_id      INTEGER        NOT NULL REFERENCES users(id)     ON DELETE CASCADE,
     homework_id  INTEGER        NOT NULL REFERENCES homeworks(id) ON DELETE CASCADE,
     submitted_at TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
-    score        NUMERIC(5, 2),  -- percentage 0–100, NULL until graded
+    score        NUMERIC(5, 2),
+    status       VARCHAR(30)    NOT NULL DEFAULT 'submitted',
+    feedback     TEXT,
+    graded_at    TIMESTAMPTZ,
     UNIQUE (user_id, homework_id)
 );
 
@@ -224,6 +230,48 @@ CREATE TABLE homework_answers (
 
 CREATE INDEX idx_homework_answers_submission_id ON homework_answers(submission_id);
 
+
+-- ============================================================
+-- MESSAGES  (Direct messaging between users)
+-- ============================================================
+CREATE TABLE messages (
+    id           SERIAL PRIMARY KEY,
+    from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    to_user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body         TEXT    NOT NULL,
+    is_read      BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_messages_from ON messages(from_user_id);
+CREATE INDEX idx_messages_to   ON messages(to_user_id);
+
+
+-- ============================================================
+-- COMMENTS  (About Us page — authenticated user comments)
+-- ============================================================
+CREATE TABLE comments (
+    id         SERIAL PRIMARY KEY,
+    user_id    INTEGER      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body       TEXT         NOT NULL,
+    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_comments_user_id ON comments(user_id);
+
+-- ============================================================
+-- REVIEWS  (About Us page — user-submitted reviews)
+-- ============================================================
+CREATE TABLE reviews (
+    id         SERIAL PRIMARY KEY,
+    author     VARCHAR(255) NOT NULL,
+    title      VARCHAR(255) NOT NULL,
+    body       TEXT         NOT NULL,
+    rating     SMALLINT     NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    likes      INTEGER      NOT NULL DEFAULT 0,
+    dislikes   INTEGER      NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
 
 -- ============================================================
 -- TESTIMONIALS  (landing page reviews)

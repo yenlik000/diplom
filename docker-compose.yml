@@ -1,0 +1,117 @@
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: lms_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       bridge_lms
+      POSTGRES_USER:     lms_user
+      POSTGRES_PASSWORD: lms_secret
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/migrate_auth_v2.sql:/docker-entrypoint-initdb.d/02_migrate_auth.sql:ro
+      - ./database/migrate_social.sql:/docker-entrypoint-initdb.d/03_migrate_social.sql:ro
+      - ./database/migrate_teacher_role.sql:/docker-entrypoint-initdb.d/04_migrate_teacher.sql:ro
+      - ./database/migrate_lesson_media.sql:/docker-entrypoint-initdb.d/05_migrate_lesson_media.sql:ro
+    networks:
+      - lms_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lms_user -d bridge_lms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── MinIO (file storage) ────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: lms_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER:     minio_admin
+      MINIO_ROOT_PASSWORD: minio_secret123
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    networks:
+      - lms_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── PHP backend (Apache) ────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lms_backend
+    restart: unless-stopped
+    environment:
+      DB_HOST:     db
+      DB_PORT:     5432
+      DB_NAME:     bridge_lms
+      DB_USER:     lms_user
+      DB_PASSWORD: lms_secret
+      JWT_SECRET:  bridge_lms_jwt_secret_prod_change_me
+      FRONTEND_URL: http://localhost
+      MINIO_ENDPOINT:    http://minio:9000
+      MINIO_PUBLIC_URL:  http://localhost/media
+      MINIO_KEY:         minio_admin
+      MINIO_SECRET:      minio_secret123
+      MINIO_BUCKET:      lms-files
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    volumes:
+      - uploads_data:/var/www/html/public/uploads
+    command: >
+      bash -c "chown -R www-data:www-data /var/www/html/public/uploads && apache2-foreground"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - lms_net
+
+  # ── Vue 3 frontend (Nginx serving built files) ──────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: lms_frontend
+    restart: unless-stopped
+    networks:
+      - lms_net
+
+  # ── Nginx Proxy Manager ─────────────────────────────────────
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: lms_npm
+    restart: unless-stopped
+    ports:
+      - "80:80"       # HTTP
+      - "443:443"     # HTTPS
+      - "81:81"       # NPM admin UI
+    volumes:
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - lms_net
+
+volumes:
+  db_data:
+  minio_data:
+  uploads_data:
+  npm_data:
+  npm_letsencrypt:
+
+networks:
+  lms_net:
+    driver: bridge

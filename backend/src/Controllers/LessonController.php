@@ -65,10 +65,10 @@ class LessonController
         $this->assertModuleOwnership($moduleId, $userId, $role);
 
         DB::query(
-            'INSERT INTO lessons (module_id, title, video_url, text_content, order_num, is_free_preview)
-             VALUES (?, ?, ?, ?, ?, ?)',
-            [$moduleId, $data['title'], $data['video_url'], $data['text_content'],
-             $data['order_num'], $data['is_free_preview']]
+            'INSERT INTO lessons (module_id, title, video_url, audio_url, text_content, order_num, is_free_preview, duration_seconds)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [$moduleId, $data['title'], $data['video_url'], $data['audio_url'], $data['text_content'],
+             $data['order_num'], $data['is_free_preview'], $data['duration_seconds']]
         );
 
         $lesson = DB::query('SELECT * FROM lessons WHERE id = lastval()')->fetch();
@@ -87,10 +87,10 @@ class LessonController
 
         $rows = DB::query(
             'UPDATE lessons
-             SET title=?, video_url=?, text_content=?, order_num=?, is_free_preview=?
+             SET title=?, video_url=?, audio_url=?, text_content=?, order_num=?, is_free_preview=?, duration_seconds=?
              WHERE id=?',
-            [$data['title'], $data['video_url'], $data['text_content'],
-             $data['order_num'], $data['is_free_preview'], $id]
+            [$data['title'], $data['video_url'], $data['audio_url'], $data['text_content'],
+             $data['order_num'], $data['is_free_preview'], $data['duration_seconds'], $id]
         )->rowCount();
 
         if (!$rows) {
@@ -154,11 +154,13 @@ class LessonController
         }
 
         return [
-            'title'           => $title,
-            'video_url'       => $request->input('video_url'),
-            'text_content'    => $request->input('text_content'),
-            'order_num'       => (int) $request->input('order_num', 1),
-            'is_free_preview' => $request->input('is_free_preview', false) ? 'true' : 'false',
+            'title'            => $title,
+            'video_url'        => $request->input('video_url'),
+            'audio_url'        => $request->input('audio_url'),
+            'text_content'     => $request->input('text_content'),
+            'order_num'        => (int) $request->input('order_num', 1),
+            'is_free_preview'  => $request->input('is_free_preview', false) ? 'true' : 'false',
+            'duration_seconds' => (int) $request->input('duration_seconds', 0),
         ];
     }
 }

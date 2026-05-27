@@ -12,6 +12,7 @@ $env = file_exists(BASE_PATH . '/.env')
     : [];
 foreach ($env as $key => $value) {
     $_ENV[$key] = $value;
+    putenv("{$key}={$value}");
 }
 
 // CORS

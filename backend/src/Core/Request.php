@@ -26,7 +26,9 @@ class Request
 
     public function bearerToken(): ?string
     {
-        $header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        $header = $_SERVER['HTTP_AUTHORIZATION']
+               ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+               ?? '';
         if (str_starts_with($header, 'Bearer ')) {
             return substr($header, 7);
         }

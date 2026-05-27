@@ -80,6 +80,38 @@ class AdminController
         Response::success($user, 'User created', 201);
     }
 
+    // DELETE /admin/users/{id}
+    public function deleteUser(Request $request): void
+    {
+        $targetId = (int) $request->params['id'];
+        $selfId   = (int) $request->params['_user_id'];
+
+        if ($targetId === $selfId) {
+            Response::error('You cannot delete your own account', 403);
+            return;
+        }
+
+        $user = DB::query('SELECT id, role FROM users WHERE id = ?', [$targetId])->fetch();
+        if (!$user) {
+            Response::error('User not found', 404);
+            return;
+        }
+
+        DB::query('DELETE FROM users WHERE id = ?', [$targetId]);
+        Response::success(null, 'User deleted');
+    }
+
+    // GET /admin/teachers
+    public function teachers(Request $request): void
+    {
+        $teachers = DB::query(
+            'SELECT id, full_name, username FROM users WHERE role = ? ORDER BY full_name',
+            ['teacher']
+        )->fetchAll();
+
+        Response::success($teachers);
+    }
+
     // GET /admin/stats
     public function stats(Request $request): void
     {

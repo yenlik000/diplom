@@ -21,6 +21,11 @@ class Router
         $this->routes[] = ['PUT', $path, $handler, $middleware];
     }
 
+    public function patch(string $path, array $handler, array $middleware = []): void
+    {
+        $this->routes[] = ['PATCH', $path, $handler, $middleware];
+    }
+
     public function delete(string $path, array $handler, array $middleware = []): void
     {
         $this->routes[] = ['DELETE', $path, $handler, $middleware];

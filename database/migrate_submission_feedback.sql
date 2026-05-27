@@ -1,0 +1,3 @@
+ALTER TABLE homework_submissions
+  ADD COLUMN IF NOT EXISTS feedback TEXT,
+  ADD COLUMN IF NOT EXISTS status   VARCHAR(30) NOT NULL DEFAULT 'submitted';

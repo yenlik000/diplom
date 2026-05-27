@@ -14,15 +14,6 @@ class ProgressController
         $courseId = (int) $request->params['courseId'];
         $userId   = (int) $request->params['_user_id'];
 
-        $enrolled = DB::query(
-            'SELECT id FROM enrollments WHERE user_id = ? AND course_id = ?',
-            [$userId, $courseId]
-        )->fetch();
-
-        if (!$enrolled) {
-            Response::error('Not enrolled in this course', 403);
-        }
-
         $total = (int) DB::query(
             'SELECT COUNT(*) FROM lessons l
              JOIN modules m ON m.id = l.module_id
@@ -38,19 +29,69 @@ class ProgressController
             [$userId, $courseId]
         )->fetchColumn();
 
-        $completedIds = DB::query(
-            'SELECT lp.lesson_id FROM lesson_progress lp
+        $completedRows = DB::query(
+            'SELECT lp.lesson_id, lp.completed_at FROM lesson_progress lp
              JOIN lessons l ON l.id = lp.lesson_id
              JOIN modules m ON m.id = l.module_id
              WHERE lp.user_id = ? AND m.course_id = ?',
             [$userId, $courseId]
-        )->fetchAll(\PDO::FETCH_COLUMN);
+        )->fetchAll();
+
+        $completedIds   = array_map('intval', array_column($completedRows, 'lesson_id'));
+        $completedTimes = [];
+        foreach ($completedRows as $row) {
+            if ($row['completed_at']) {
+                $completedTimes[(int) $row['lesson_id']] = date('H:i', strtotime($row['completed_at']));
+            }
+        }
+
+        $totalQuizzes = (int) DB::query(
+            'SELECT COUNT(*) FROM homeworks h
+             JOIN lessons l ON l.id = h.lesson_id
+             JOIN modules m ON m.id = l.module_id
+             WHERE m.course_id = ?',
+            [$courseId]
+        )->fetchColumn();
+
+        $completedQuizzes = (int) DB::query(
+            'SELECT COUNT(*) FROM homework_submissions hs
+             JOIN homeworks h ON h.id = hs.homework_id
+             JOIN lessons l ON l.id = h.lesson_id
+             JOIN modules m ON m.id = l.module_id
+             WHERE hs.user_id = ? AND m.course_id = ?',
+            [$userId, $courseId]
+        )->fetchColumn();
+
+        $avgScore = DB::query(
+            'SELECT AVG(hs.score) FROM homework_submissions hs
+             JOIN homeworks h ON h.id = hs.homework_id
+             JOIN lessons l ON l.id = h.lesson_id
+             JOIN modules m ON m.id = l.module_id
+             WHERE hs.user_id = ? AND m.course_id = ? AND hs.score IS NOT NULL',
+            [$userId, $courseId]
+        )->fetchColumn();
+
+        $quizDetails = DB::query(
+            'SELECT h.title AS quiz_title, hs.score, hs.submitted_at
+             FROM homework_submissions hs
+             JOIN homeworks h ON h.id = hs.homework_id
+             JOIN lessons l ON l.id = h.lesson_id
+             JOIN modules m ON m.id = l.module_id
+             WHERE hs.user_id = ? AND m.course_id = ?
+             ORDER BY hs.submitted_at DESC',
+            [$userId, $courseId]
+        )->fetchAll();
 
         Response::success([
             'total_lessons'     => $total,
             'completed_lessons' => $completed,
             'percentage'        => $total > 0 ? round($completed / $total * 100) : 0,
             'completed_ids'     => $completedIds,
+            'completed_times'   => $completedTimes,
+            'total_quizzes'     => $totalQuizzes,
+            'completed_quizzes' => $completedQuizzes,
+            'avg_quiz_score'    => $avgScore !== null ? round((float)$avgScore, 1) : null,
+            'quiz_details'      => $quizDetails,
         ]);
     }
 
@@ -69,15 +110,6 @@ class ProgressController
 
         if (!$lesson) {
             Response::error('Lesson not found', 404);
-        }
-
-        $enrolled = DB::query(
-            'SELECT id FROM enrollments WHERE user_id = ? AND course_id = ?',
-            [$userId, $lesson['course_id']]
-        )->fetch();
-
-        if (!$enrolled) {
-            Response::error('Not enrolled in this course', 403);
         }
 
         DB::query(
